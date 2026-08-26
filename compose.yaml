@@ -1,0 +1,16 @@
+services:
+  claude-usage:
+    build: .
+    container_name: claude-usage
+    restart: unless-stopped
+    ports:
+      - "8089:8080"
+    environment:
+      POLL_INTERVAL_SECONDS: "60"
+      # Alternative to the token volume: a long-lived token from `claude setup-token`
+      # CLAUDE_OAUTH_TOKEN: sk-ant-oat01-...
+    volumes:
+      - claude-usage-data:/data
+
+volumes:
+  claude-usage-data:
