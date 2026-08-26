@@ -51,9 +51,10 @@ plus `claude_usage_up` / `claude_usage_fetch_*` scrape health.
 
 ## Auth
 
-Two options; the service checks `CLAUDE_OAUTH_TOKEN` first, then the token file.
+The supported path is the built-in interactive login. (The service checks
+`CLAUDE_OAUTH_TOKEN` first, then the token file.)
 
-### Option A — own token pair with auto-refresh (recommended, fully unattended)
+### Interactive login — own token pair with auto-refresh
 
 One-time interactive login (PKCE, same OAuth client Claude Code uses). Run it inside
 the container so the token lands on the `/data` volume:
@@ -71,16 +72,12 @@ using the refresh token, and persists rotations to `/data/token.json`.
 rotate, and two clients sharing one would log each other out. The whole point of
 `login` is giving the container its own independent pair.
 
-### Option B — static long-lived token
+### Static token (`CLAUDE_OAUTH_TOKEN`) — testing only
 
-`claude setup-token` mints a **one-year** OAuth access token for headless use (access
-token only — no refresh token, so no auto-renewal is possible; mint a new one when it
-expires). Put it in the environment as `CLAUDE_OAUTH_TOKEN`.
-
-Caveat: the Claude Code docs describe setup-token tokens as limited to model requests,
-and it's unverified whether they can hit the usage endpoint. Test with
-`node server.mjs check` before relying on it; Option A uses the exact client + scopes
-this project was verified with.
+Accepts any working bearer token, with no refresh logic. Note that `claude
+setup-token` tokens **do not work** here: they're scoped to model requests only and
+the usage endpoint rejects them (tried 2026-08-26). This mode is mainly useful for
+quick tests with the short-lived access token from an existing Claude Code login.
 
 ## Config
 
