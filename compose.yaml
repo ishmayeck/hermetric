@@ -6,7 +6,7 @@ services:
     ports:
       - "8089:8080"
     environment:
-      POLL_INTERVAL_SECONDS: "60"
+      POLL_INTERVAL_SECONDS: "180"
       # Testing-only static token via .env; setup-token tokens are rejected by the
       # usage endpoint. Leave empty to use the /data token file from ./login.sh.
       CLAUDE_OAUTH_TOKEN: ${CLAUDE_OAUTH_TOKEN:-}

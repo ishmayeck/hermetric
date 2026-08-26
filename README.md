@@ -85,9 +85,10 @@ quick tests with the short-lived access token from an existing Claude Code login
 |-------------------------|--------------------|------------------------------|
 | `PORT`                  | `8080`             |                              |
 | `BIND`                  | `0.0.0.0`          |                              |
-| `POLL_INTERVAL_SECONDS` | `60`               | min 15; backs off on errors  |
-| `CLAUDE_OAUTH_TOKEN`    | –                  | static token mode            |
+| `POLL_INTERVAL_SECONDS` | `180`              | min 15; backs off on errors  |
+| `CLAUDE_OAUTH_TOKEN`    | –                  | static token mode (testing)  |
 | `CLAUDE_TOKEN_FILE`     | `/data/token.json` | refresh-token mode           |
+| `UPSTREAM_USER_AGENT`   | `claude-cli/...`   | UA sent to the usage endpoint |
 
 ## Run
 
@@ -112,5 +113,11 @@ Local dev without Docker: `CLAUDE_TOKEN_FILE=./token.json node server.mjs` (or
   `iguana_necktie`, `cinder_cove`, ...). `/raw` passes everything through, so nothing
   is lost when Anthropic adds windows; `limits[]` is the stable-looking part and is
   what `/usage` and `/metrics` are built from.
-- Endpoint discovered 2026-08-26 by watching the usage screen's own traffic; it is
-  unofficial and could change without notice.
+- The endpoint is unofficial (rediscovered here by watching the usage screen's own
+  traffic; a number of community widgets and statuslines use it too) and could change
+  without notice.
+- **Rate limiting**: the endpoint 429s aggressively for clients it doesn't recognize —
+  with `retry-after: 0` and sometimes a sticky blocked state (see
+  anthropics/claude-code#30930, #31021, #31637). Hence the defaults: the official
+  CLI's User-Agent shape, a 3-minute poll, and a 15-minute cool-off after any 429.
+  Resist the urge to poll faster; the numbers barely move minute-to-minute anyway.

@@ -23,12 +23,15 @@ const REDIRECT_URI = 'https://console.anthropic.com/oauth/code/callback';
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'; // Claude Code's public OAuth client
 const SCOPES = 'org:create_api_key user:profile user:inference';
 const BETA_HEADER = 'oauth-2025-04-20';
-const USER_AGENT = 'claude-usage-exporter/0.1';
+// The usage endpoint aggressively rate-limits clients it doesn't recognize
+// (429, retry-after: 0, sometimes sticky) — see README. Present the official
+// CLI's UA shape by default; override with UPSTREAM_USER_AGENT.
+const USER_AGENT = process.env.UPSTREAM_USER_AGENT ?? 'claude-cli/2.1.241 (external, cli)';
 
 const cfg = {
   port: Number(process.env.PORT ?? 8080),
   bind: process.env.BIND ?? '0.0.0.0',
-  pollSeconds: Math.max(15, Number(process.env.POLL_INTERVAL_SECONDS ?? 60)),
+  pollSeconds: Math.max(15, Number(process.env.POLL_INTERVAL_SECONDS ?? 180)),
   staticToken: process.env.CLAUDE_OAUTH_TOKEN || null,
   tokenFile: process.env.CLAUDE_TOKEN_FILE ?? '/data/token.json',
 };
@@ -125,7 +128,11 @@ async function fetchUsageOnce({ retryAuth = true } = {}) {
     await getAccessToken({ forceRefresh: true });
     return fetchUsageOnce({ retryAuth: false });
   }
-  if (!res.ok) throw new Error(`usage fetch failed: HTTP ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const err = new Error(`usage fetch failed: HTTP ${res.status} ${await res.text()}`);
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 
@@ -139,9 +146,10 @@ async function poll() {
   } catch (err) {
     state.errorsTotal += 1;
     state.lastError = String(err.message ?? err);
-    // Back off up to 10 minutes on repeated failure, so we don't hammer while broken.
-    const failStreakMs = Math.min(600_000, cfg.pollSeconds * 1000 * 2);
-    state.backoffUntil = Date.now() + failStreakMs;
+    // The endpoint's 429s come with retry-after: 0 and can be sticky, so cool
+    // off hard on rate limiting; other failures back off more gently.
+    const cooloffMs = err.status === 429 ? 900_000 : Math.min(600_000, cfg.pollSeconds * 1000 * 2);
+    state.backoffUntil = Date.now() + cooloffMs;
     console.error(`[poll] ${state.lastError}`);
   }
 }
