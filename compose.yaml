@@ -1,7 +1,7 @@
 services:
-  claude-usage:
+  hermetric:
     build: .
-    container_name: claude-usage
+    container_name: hermetric
     restart: unless-stopped
     ports:
       - "8089:8080"
@@ -11,7 +11,7 @@ services:
       # usage endpoint. Leave empty to use the /data token file from ./login.sh.
       CLAUDE_OAUTH_TOKEN: ${CLAUDE_OAUTH_TOKEN:-}
     volumes:
-      - claude-usage-data:/data
+      - hermetric-data:/data
 
 volumes:
-  claude-usage-data:
+  hermetric-data:

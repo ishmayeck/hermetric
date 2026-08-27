@@ -1,7 +1,10 @@
-# claude-usage-exporter
+# hermetric
 
 The exact usage percentages from Claude's **Settings → Usage** screen, served as a
 small REST API and Prometheus exporter. No headless browser, no cookies, no scraping.
+
+*Hermes — god of messengers, boundary-crossings, and thieves — plus metrics: numbers
+gleaned through a not-entirely-official channel, delivered hermetically sealed.*
 
 ## How it works
 
@@ -100,7 +103,7 @@ curl localhost:8089/usage
 Prometheus scrape config:
 
 ```yaml
-- job_name: claude-usage
+- job_name: hermetric
   static_configs: [{ targets: ["truenas:8089"] }]
 ```
 

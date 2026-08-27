@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// claude-usage-exporter — exposes the Claude "Usage" screen numbers as REST + Prometheus.
+// hermetric — exposes the Claude "Usage" screen numbers as REST + Prometheus.
 //
 // Data source: GET https://api.anthropic.com/api/oauth/usage — the same payload the
 // claude.ai settings/usage screen renders (session %, weekly %, per-model weekly %),
@@ -289,7 +289,7 @@ async function handler(req, res) {
       });
     }
     if (url.pathname === '/') {
-      return json(200, { service: 'claude-usage-exporter', endpoints: ['/usage', '/raw', '/metrics', '/healthz'] });
+      return json(200, { service: 'hermetric', endpoints: ['/usage', '/raw', '/metrics', '/healthz'] });
     }
     json(404, { error: 'not found' });
   } catch (err) {
@@ -366,7 +366,7 @@ if (cmd === 'login') {
   await poll();
   setInterval(poll, cfg.pollSeconds * 1000);
   http.createServer(handler).listen(cfg.port, cfg.bind, () => {
-    console.log(`claude-usage-exporter listening on ${cfg.bind}:${cfg.port}, polling every ${cfg.pollSeconds}s`);
+    console.log(`hermetric listening on ${cfg.bind}:${cfg.port}, polling every ${cfg.pollSeconds}s`);
     if (state.lastError) console.error(`[startup] first fetch failed: ${state.lastError}`);
   });
 }
