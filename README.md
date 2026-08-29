@@ -110,6 +110,14 @@ Prometheus scrape config:
 Local dev without Docker: `CLAUDE_TOKEN_FILE=./token.json node server.mjs` (or
 `node server.mjs check` for a one-shot fetch).
 
+## Grafana dashboard
+
+`grafana/claude-usage.json` is a ready-made dashboard for these metrics:
+gauges for the session / weekly / per-model weekly limits with reset
+countdowns, which limit is currently binding, extra-usage spend, exporter
+freshness, and utilization over time. Import it via **Dashboards → Import**
+and pick the Prometheus datasource that scrapes hermetric when prompted.
+
 ## Notes
 
 - The upstream payload is full of in-flight experiment fields (`tangelo`,
