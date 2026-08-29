@@ -17,16 +17,20 @@ import { dirname } from 'node:path';
 import readline from 'node:readline/promises';
 
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
-const TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
+// Token/callback hosts follow what the current Claude Code binary uses; the old
+// console.anthropic.com token URL 404s for claude-cli user agents.
+const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
 const AUTHORIZE_URL = 'https://claude.ai/oauth/authorize';
-const REDIRECT_URI = 'https://console.anthropic.com/oauth/code/callback';
+const REDIRECT_URI = 'https://platform.claude.com/oauth/code/callback';
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'; // Claude Code's public OAuth client
 const SCOPES = 'org:create_api_key user:profile user:inference';
 const BETA_HEADER = 'oauth-2025-04-20';
 // The usage endpoint aggressively rate-limits clients it doesn't recognize
 // (429, retry-after: 0, sometimes sticky) — see README. Present the official
-// CLI's UA shape by default; override with UPSTREAM_USER_AGENT.
-const USER_AGENT = process.env.UPSTREAM_USER_AGENT ?? 'claude-cli/2.1.241 (external, cli)';
+// CLI's UA shape there by default; override with UPSTREAM_USER_AGENT. The OAuth
+// endpoints get a plain UA — they route differently for claude-cli agents.
+const USAGE_USER_AGENT = process.env.UPSTREAM_USER_AGENT ?? 'claude-cli/2.1.251 (external, cli)';
+const OAUTH_USER_AGENT = 'hermetric/0.1';
 
 const cfg = {
   port: Number(process.env.PORT ?? 8080),
@@ -62,7 +66,7 @@ async function refreshToken(tok) {
     try {
       const res = await fetch(TOKEN_URL, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'user-agent': USER_AGENT },
+        headers: { 'content-type': 'application/json', 'user-agent': OAUTH_USER_AGENT },
         body: JSON.stringify({
           grant_type: 'refresh_token',
           refresh_token: tok.refreshToken,
@@ -120,7 +124,7 @@ async function fetchUsageOnce({ retryAuth = true } = {}) {
       authorization: `Bearer ${token}`,
       'anthropic-beta': BETA_HEADER,
       accept: 'application/json',
-      'user-agent': USER_AGENT,
+      'user-agent': USAGE_USER_AGENT,
     },
   });
   if ((res.status === 401 || res.status === 403) && retryAuth && !cfg.staticToken) {
@@ -328,7 +332,7 @@ async function login() {
   const [code, returnedState] = pasted.split('#');
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'user-agent': USER_AGENT },
+    headers: { 'content-type': 'application/json', 'user-agent': OAUTH_USER_AGENT },
     body: JSON.stringify({
       grant_type: 'authorization_code',
       code,
