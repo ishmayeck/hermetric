@@ -15,3 +15,10 @@ services:
 
 volumes:
   hermetric-data:
+
+networks:
+  default:
+    # Some daemons (e.g. docker 27 on TrueNAS) auto-assign IPv6 and store the
+    # gateway as "addr/64", which newer clients refuse to parse on every later
+    # compose command. Nothing here needs v6.
+    enable_ipv6: false
