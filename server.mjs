@@ -13,7 +13,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import readline from 'node:readline/promises';
 
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
@@ -145,6 +145,7 @@ async function poll() {
   try {
     state.raw = await fetchUsageOnce();
     state.fetchedAt = Date.now();
+    trackWindows(normalizedLimits(state.raw));
     state.lastError = null;
     state.backoffUntil = 0;
   } catch (err) {
@@ -156,6 +157,70 @@ async function poll() {
     state.backoffUntil = Date.now() + cooloffMs;
     console.error(`[poll] ${state.lastError}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Session windows
+// ---------------------------------------------------------------------------
+// Claude's 5-hour session limit runs in windows that start on first use, so
+// they don't sit on any clock grid. Prometheus can't group one gauge by
+// another gauge's value, and Grafana can't invent bars for idle time, so the
+// exporter keeps the ledger itself: peak utilization per window keyed by the
+// window's start, plus synthetic 0% windows for every completed idle 5-hour
+// stretch, so a "% used per 5-hour window" chart has exactly one bar per period.
+const WINDOW_MS = 5 * 3600 * 1000;
+const WINDOWS_KEEP = Number(process.env.WINDOWS_KEEP ?? 400);
+const windowsFile = process.env.CLAUDE_WINDOWS_FILE ?? join(dirname(cfg.tokenFile), 'windows.json');
+const windows = loadWindows(); // Map<startMs, { peak, synthetic? }>
+
+function loadWindows() {
+  try {
+    const obj = JSON.parse(readFileSync(windowsFile, 'utf8'));
+    return new Map(Object.entries(obj).map(([k, v]) => [Number(k), v]));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveWindows() {
+  const keep = [...windows.keys()].sort((a, b) => a - b).slice(-WINDOWS_KEEP);
+  for (const k of windows.keys()) if (!keep.includes(k)) windows.delete(k);
+  const obj = Object.fromEntries(keep.map((k) => [k, windows.get(k)]));
+  try {
+    mkdirSync(dirname(windowsFile), { recursive: true });
+    const tmp = `${windowsFile}.tmp`;
+    writeFileSync(tmp, JSON.stringify(obj) + '\n');
+    renameSync(tmp, windowsFile);
+  } catch (err) {
+    console.error(`[windows] cannot persist ${windowsFile}: ${err.message}`);
+  }
+}
+
+// Fill completed idle 5-hour periods between the last known window's end and `until`.
+function fillIdleWindows(until) {
+  if (windows.size === 0) return;
+  let t = Math.max(...windows.keys()) + WINDOW_MS;
+  while (t + WINDOW_MS <= until) {
+    if (!windows.has(t)) windows.set(t, { peak: 0, synthetic: true });
+    t += WINDOW_MS;
+  }
+}
+
+function trackWindows(limits) {
+  const session = limits.find((l) => l.limit === 'session');
+  if (session?.resetsAt) {
+    // The upstream reset stamp jitters by a second either side of a minute boundary.
+    const resetMs = Math.round(Date.parse(session.resetsAt) / 60_000) * 60_000;
+    const start = resetMs - WINDOW_MS;
+    fillIdleWindows(start);
+    const w = windows.get(start) ?? { peak: 0 };
+    w.peak = Math.max(w.peak, session.percent ?? 0);
+    delete w.synthetic;
+    windows.set(start, w);
+  } else {
+    fillIdleWindows(Date.now());
+  }
+  saveWindows();
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +305,12 @@ function renderMetrics() {
     lims.filter((l) => l.resetsAt).map((l) => [lab(l), Math.floor(Date.parse(l.resetsAt) / 1000)]));
   push('claude_usage_limit_active', 'Whether this limit is currently the binding one (1/0)', 'gauge',
     lims.map((l) => [lab(l), l.isActive ? 1 : 0]));
+
+  const windowRows = [...windows.entries()].sort((a, b) => a[0] - b[0]);
+  push('claude_session_window_peak_percent', 'Peak session utilization (0-100) reached in each 5-hour window, keyed by window start; idle 5-hour stretches appear as 0', 'gauge',
+    windowRows.map(([start, w]) => [{ window_start: Math.floor(start / 1000) }, w.peak]));
+  push('claude_session_window_start_seconds', 'Unix time the window started (same value as its window_start label, for range filtering in queries)', 'gauge',
+    windowRows.map(([start]) => [{ window_start: Math.floor(start / 1000) }, Math.floor(start / 1000)]));
 
   const spend = state.raw?.spend;
   if (spend?.used && spend?.limit) {

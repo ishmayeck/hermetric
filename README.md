@@ -132,3 +132,19 @@ and pick the Prometheus datasource that scrapes hermetric when prompted.
   anthropics/claude-code#30930, #31021, #31637). Hence the defaults: the official
   CLI's User-Agent shape, a 3-minute poll, and a 15-minute cool-off after any 429.
   Resist the urge to poll faster; the numbers barely move minute-to-minute anyway.
+
+### Session windows
+
+Claude's 5-hour session windows start on first use, so they sit on no clock grid,
+and Prometheus can't group a gauge by another gauge's value. hermetric therefore
+keeps a small ledger (`/data/windows.json`, next to the token): the peak session
+utilization per window keyed by the window's start (reset stamp rounded to the
+minute minus 5 h), plus synthetic 0% entries for every completed idle 5-hour
+stretch. Exported as:
+
+- `claude_session_window_peak_percent{window_start="<unix>"}` — peak % in that window
+- `claude_session_window_start_seconds{window_start="<unix>"}` — the start as a value, for range filtering
+
+Keeps the last `WINDOWS_KEEP` (default 400) windows. `tools/backfill-windows.py <prometheus-url> [days]`
+rebuilds the ledger from scraped `claude_usage_*` history (write its output to `/data/windows.json`
+before starting the exporter).
