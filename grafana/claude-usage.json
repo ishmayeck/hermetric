@@ -614,7 +614,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "Limit utilization over time",
-      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets. Thin dashed lines are the even-pace reference: a straight burn from 0% at window start to 100% at reset. Above the dashed line of your color = burning faster than the window sustains.",
+      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets. The gray dashed line is the even-pace reference: a straight burn from 0% at window start to 100% at reset. One line covers both weekly limits — they share the window, and percentages normalize away the different budgets. A session-pace series exists too but is hidden by default; its Last value in the legend still shows where an even session burn would sit right now.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -639,12 +639,7 @@
         {
           "refId": "C",
           "expr": "clamp(100 * (time() - (max by (limit) (claude_usage_resets_at_seconds{limit=\"weekly_all\"}) - 7*24*3600)) / (7*24*3600), 0, 100)",
-          "legendFormat": "weekly_all (pace)"
-        },
-        {
-          "refId": "D",
-          "expr": "clamp(100 * (time() - (max by (limit, model) (claude_usage_resets_at_seconds{limit=\"weekly_model\"}) - 7*24*3600)) / (7*24*3600), 0, 100)",
-          "legendFormat": "weekly_model {{model}} (pace)"
+          "legendFormat": "weekly (pace)"
         }
       ],
       "fieldConfig": {
@@ -657,10 +652,7 @@
             "fillOpacity": 6,
             "showPoints": "never",
             "spanNulls": 3600000,
-            "axisSoftMax": 100,
-            "thresholdsStyle": {
-              "mode": "dashed"
-            }
+            "axisSoftMax": 100
           },
           "thresholds": {
             "mode": "absolute",
@@ -668,10 +660,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 90
               }
             ]
           }
@@ -712,35 +700,28 @@
                   "mode": "fixed",
                   "fixedColor": "#7EB26D"
                 }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "weekly_all (pace)"
-            },
-            "properties": [
+              },
               {
-                "id": "color",
+                "id": "custom.hideFrom",
                 "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#EAB839"
+                  "viz": true,
+                  "legend": false,
+                  "tooltip": true
                 }
               }
             ]
           },
           {
             "matcher": {
-              "id": "byRegexp",
-              "options": "^weekly_model .*\\(pace\\)$"
+              "id": "byName",
+              "options": "weekly (pace)"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#6ED0E0"
+                  "fixedColor": "#9E9E9E"
                 }
               }
             ]
