@@ -614,7 +614,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "Limit utilization over time",
-      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets.",
+      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets. Thin dashed lines are the even-pace reference: a straight burn from 0% at window start to 100% at reset. Above the dashed line of your color = burning faster than the window sustains.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -630,6 +630,21 @@
           "refId": "A",
           "expr": "claude_usage_percent",
           "legendFormat": "{{limit}} {{model}}"
+        },
+        {
+          "refId": "B",
+          "expr": "clamp(100 * (time() - (max by (limit) (claude_usage_resets_at_seconds{limit=\"session\"}) - 5*3600)) / (5*3600), 0, 100)",
+          "legendFormat": "session (pace)"
+        },
+        {
+          "refId": "C",
+          "expr": "clamp(100 * (time() - (max by (limit) (claude_usage_resets_at_seconds{limit=\"weekly_all\"}) - 7*24*3600)) / (7*24*3600), 0, 100)",
+          "legendFormat": "weekly_all (pace)"
+        },
+        {
+          "refId": "D",
+          "expr": "clamp(100 * (time() - (max by (limit, model) (claude_usage_resets_at_seconds{limit=\"weekly_model\"}) - 7*24*3600)) / (7*24*3600), 0, 100)",
+          "legendFormat": "weekly_model {{model}} (pace)"
         }
       ],
       "fieldConfig": {
@@ -661,7 +676,76 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*\\(pace\\)$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [6, 6]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "session (pace)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#7EB26D"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "weekly_all (pace)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#EAB839"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^weekly_model .*\\(pace\\)$"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#6ED0E0"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
