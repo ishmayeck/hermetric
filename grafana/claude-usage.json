@@ -9,6 +9,7 @@
       "pluginName": "Prometheus"
     }
   ],
+  "description": "Claude plan limit utilization from hermetric.",
   "uid": "claude-usage",
   "title": "Claude Usage",
   "tags": [
@@ -40,7 +41,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_percent{limit=\"session\"}",
+          "expr": "max by (limit, model) (claude_usage_percent{limit=\"session\"})",
           "instant": true,
           "legendFormat": "Session"
         }
@@ -99,7 +100,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_percent{limit=\"weekly_all\"}",
+          "expr": "max by (limit, model) (claude_usage_percent{limit=\"weekly_all\"})",
           "instant": true,
           "legendFormat": "Weekly all"
         }
@@ -158,7 +159,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_percent{limit=\"weekly_model\"}",
+          "expr": "max by (limit, model) (claude_usage_percent{limit=\"weekly_model\"})",
           "instant": true,
           "legendFormat": "{{model}} weekly"
         }
@@ -218,7 +219,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_limit_active == 1",
+          "expr": "max by (limit, model) (claude_usage_limit_active) == 1",
           "instant": true,
           "legendFormat": "{{limit}} {{model}}"
         }
@@ -269,7 +270,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_credits_used_dollars",
+          "expr": "max by (limit, model) (claude_usage_credits_used_dollars)",
           "instant": true,
           "legendFormat": "spent"
         }
@@ -328,7 +329,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_resets_at_seconds{limit=\"session\"} - time()",
+          "expr": "max by (limit, model) (claude_usage_resets_at_seconds{limit=\"session\"}) - time()",
           "instant": true
         }
       ],
@@ -390,7 +391,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_resets_at_seconds{limit=\"weekly_all\"} - time()",
+          "expr": "max by (limit, model) (claude_usage_resets_at_seconds{limit=\"weekly_all\"}) - time()",
           "instant": true
         }
       ],
@@ -452,7 +453,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_resets_at_seconds{limit=\"weekly_model\"} - time()",
+          "expr": "max by (limit, model) (claude_usage_resets_at_seconds{limit=\"weekly_model\"}) - time()",
           "instant": true
         }
       ],
@@ -515,7 +516,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "time() - claude_usage_fetch_success_timestamp_seconds",
+          "expr": "time() - max by (limit, model) (claude_usage_fetch_success_timestamp_seconds)",
           "instant": true
         }
       ],
@@ -568,7 +569,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "increase(claude_usage_fetch_errors_total[24h])",
+          "expr": "sum(increase(claude_usage_fetch_errors_total[24h]))",
           "instant": true
         }
       ],
@@ -614,7 +615,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "Limit utilization over time",
-      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets. The gray dashed line is the even-pace reference: a straight burn from 0% at window start to 100% at reset. One line covers both weekly limits — they share the window, and percentages normalize away the different budgets. A session-pace series exists too but is hidden by default; its Last value in the legend still shows where an even session burn would sit right now.",
+      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets. The gray dashed line is the even-pace reference: a straight burn from 0% at window start to 100% at reset. One line covers both weekly limits \u2014 they share the window, and percentages normalize away the different budgets. A session-pace series exists too but is hidden by default; its Last value in the legend still shows where an even session burn would sit right now.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -628,7 +629,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "claude_usage_percent",
+          "expr": "max by (limit, model) (claude_usage_percent)",
           "legendFormat": "{{limit}} {{model}}"
         },
         {
@@ -675,7 +676,10 @@
                 "id": "custom.lineStyle",
                 "value": {
                   "fill": "dash",
-                  "dash": [6, 6]
+                  "dash": [
+                    6,
+                    6
+                  ]
                 }
               },
               {
@@ -741,6 +745,135 @@
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "barchart",
+      "title": "Session windows \u2014 % used",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "One bar per 5-hour session window (x = when the window started), height = peak utilization reached in it. Windows are Claude's own (they start on first use), tracked by hermetric; completed idle 5-hour stretches show as 0% bars.",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "expr": "claude_session_window_peak_percent and on (window_start) (claude_session_window_start_seconds >= time() - $__range_s)",
+          "legendFormat": "used"
+        },
+        {
+          "refId": "B",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "expr": "claude_session_window_start_seconds * 1000 and on (window_start) (claude_session_window_start_seconds >= time() - $__range_s)",
+          "legendFormat": "start"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "window_start",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^Value #(A|B)$"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "Value #B",
+                "destinationType": "time"
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "Value #B": "Window start",
+              "Value #A": "Used"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Window start"
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 85,
+            "gradientMode": "none",
+            "axisSoftMin": 0
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "vertical",
+        "xField": "Window start",
+        "showValue": "auto",
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "stacking": "none",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 100,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
         }
       }
     }
