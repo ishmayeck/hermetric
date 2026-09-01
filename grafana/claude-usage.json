@@ -629,7 +629,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (limit, model) (claude_usage_percent)",
+          "expr": "max by (limit) (claude_usage_percent{limit!=\"weekly_model\"})",
+          "legendFormat": "{{limit}}"
+        },
+        {
+          "refId": "A2",
+          "expr": "max by (limit, model) (claude_usage_percent{limit=\"weekly_model\"})",
           "legendFormat": "{{limit}} {{model}}"
         },
         {
@@ -729,8 +734,8 @@
               "options": {
                 "mode": "exclude",
                 "names": [
-                  "session ",
-                  "weekly_all ",
+                  "session",
+                  "weekly_all",
                   "weekly_model Fable",
                   "weekly (pace)"
                 ],
