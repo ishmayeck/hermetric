@@ -615,7 +615,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "Limit utilization over time",
-      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets. The gray dashed line is the even-pace reference: a straight burn from 0% at window start to 100% at reset. One line covers both weekly limits \u2014 they share the window, and percentages normalize away the different budgets. A session-pace series exists too but is hidden by default; its Last value in the legend still shows where an even session burn would sit right now.",
+      "description": "Percent of each limit window consumed, as shown on the claude.ai usage screen. Sawtooth drops are window resets. The gray dashed line is the even-pace reference: a straight burn from 0% at window start to 100% at reset. One line covers both weekly limits \u2014 they share the window, and percentages normalize away the different budgets. A session-pace series starts hidden: ctrl/cmd-click its legend entry to toggle it, and its Last value always shows where an even session burn would sit right now.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -704,14 +704,6 @@
                   "mode": "fixed",
                   "fixedColor": "#7EB26D"
                 }
-              },
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "viz": true,
-                  "legend": false,
-                  "tooltip": true
-                }
               }
             ]
           },
@@ -726,6 +718,33 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#9E9E9E"
+                }
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "session ",
+                  "weekly_all ",
+                  "weekly_model Fable",
+                  "weekly (pace)"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "viz": true,
+                  "legend": false,
+                  "tooltip": false
                 }
               }
             ]
