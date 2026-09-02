@@ -312,10 +312,16 @@ function renderMetrics() {
   push('claude_session_window_start_seconds', 'Unix time the window started (same value as its window_start label, for range filtering in queries)', 'gauge',
     windowRows.map(([start]) => [{ window_start: Math.floor(start / 1000) }, Math.floor(start / 1000)]));
 
+  // Spend and cap are independent upstream: a seat can have extra-usage spend
+  // with no monthly cap configured (limit: null). Export what exists rather
+  // than requiring both, otherwise an uncapped seat's real spend vanishes and
+  // dashboards read the absence as $0.
   const spend = state.raw?.spend;
-  if (spend?.used && spend?.limit) {
-    const money = (m) => m.amount_minor / 10 ** m.exponent;
+  const money = (m) => m.amount_minor / 10 ** m.exponent;
+  if (spend?.used) {
     push('claude_usage_credits_used_dollars', 'Extra-usage credits spent this month', 'gauge', [[{}, money(spend.used)]]);
+  }
+  if (spend?.limit) {
     push('claude_usage_credits_limit_dollars', 'Extra-usage credits monthly cap', 'gauge', [[{}, money(spend.limit)]]);
     push('claude_usage_credits_percent', 'Extra-usage credits utilization percent', 'gauge', [[{}, spend.percent ?? 0]]);
   }
