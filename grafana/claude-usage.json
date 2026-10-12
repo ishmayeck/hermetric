@@ -9,7 +9,6 @@
       "pluginName": "Prometheus"
     }
   ],
-  "description": "Claude plan limit utilization from hermetric.",
   "uid": "claude-usage",
   "title": "Claude Usage",
   "tags": [
@@ -903,6 +902,245 @@
           "sort": "none"
         }
       }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "API allowance \u2014 used vs limit",
+      "description": "Monthly API usage allowance included with the plan ($250). Upstream reports it under a codename (window label, currently iguana_necktie) that may be renamed. Purple markers = reset date (visible when the time range covers it).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 18,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (window) (claude_usage_window_used_dollars)",
+          "legendFormat": "{{window}} used"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (window) (claude_usage_window_limit_dollars)",
+          "legendFormat": "{{window}} limit"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": 3600000
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* limit$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    6,
+                    6
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9E9E9E"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "API allowance remaining",
+      "description": "Monthly API usage allowance included with the plan ($250). Upstream reports it under a codename (window label, currently iguana_necktie) that may be renamed.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 30,
+        "w": 6,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (window) (claude_usage_window_remaining_dollars)",
+          "instant": true,
+          "legendFormat": "{{window}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 25
+              },
+              {
+                "color": "green",
+                "value": 75
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "API allowance resets",
+      "description": "Monthly API usage allowance included with the plan ($250). Upstream reports it under a codename (window label, currently iguana_necktie) that may be renamed.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 35,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (window) (claude_usage_window_resets_at_seconds) * 1000",
+          "instant": true,
+          "legendFormat": "{{window}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeAsLocalNoDateIfToday",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      }
     }
-  ]
+  ],
+  "description": "Claude plan limit utilization from hermetric.",
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "name": "Dollar window reset",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "enable": true,
+        "iconColor": "purple",
+        "expr": "max by (window) (claude_usage_window_resets_at_seconds) * 1000",
+        "useValueForTime": true,
+        "step": "5m",
+        "titleFormat": "{{window}} resets",
+        "textFormat": "Dollar usage window (API allowance) resets"
+      }
+    ]
+  }
 }
