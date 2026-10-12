@@ -326,6 +326,35 @@ function renderMetrics() {
     push('claude_usage_credits_percent', 'Extra-usage credits utilization percent', 'gauge', [[{}, spend.percent ?? 0]]);
   }
 
+  // Dollar-valued windows: top-level blocks shaped {utilization, resets_at,
+  // limit_dollars, used_dollars, remaining_dollars, locked_reason} — e.g. the
+  // plan's monthly API allowance. Upstream keys are codenames that get renamed
+  // (iguana_necktie, ...), so take every top-level object with a dollar limit
+  // rather than a fixed list; five_hour/seven_day join in if they gain one.
+  const dollarWindows = Object.entries(state.raw ?? {})
+    .filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v) && typeof v.limit_dollars === 'number');
+  const dw = (field) => dollarWindows
+    .filter(([, v]) => typeof v[field] === 'number')
+    .map(([k, v]) => [{ window: k }, v[field]]);
+  push('claude_usage_window_limit_dollars', 'Dollar limit of a usage window (e.g. monthly API allowance)', 'gauge', dw('limit_dollars'));
+  push('claude_usage_window_used_dollars', 'Dollars used in this usage window', 'gauge', dw('used_dollars'));
+  push('claude_usage_window_remaining_dollars', 'Dollars remaining in this usage window', 'gauge', dw('remaining_dollars'));
+  // Percent 0-100. Derived from used/limit when both exist so the scale doesn't
+  // hinge on upstream's utilization field (unverified whether it's 0-1 or 0-100
+  // for dollar windows); falls back to upstream utilization as-is.
+  push('claude_usage_window_utilization', 'Utilization percent (0-100) of a dollar usage window', 'gauge',
+    dollarWindows.flatMap(([k, v]) => {
+      const pct = typeof v.used_dollars === 'number' && v.limit_dollars > 0
+        ? (100 * v.used_dollars) / v.limit_dollars
+        : v.utilization;
+      return typeof pct === 'number' ? [[{ window: k }, pct]] : [];
+    }));
+  push('claude_usage_window_resets_at_seconds', 'Unix time when this dollar usage window resets', 'gauge',
+    dollarWindows.filter(([, v]) => v.resets_at && !Number.isNaN(Date.parse(v.resets_at)))
+      .map(([k, v]) => [{ window: k }, Math.floor(Date.parse(v.resets_at) / 1000)]));
+  push('claude_usage_window_locked', 'Whether upstream reports this dollar window locked (locked_reason non-null)', 'gauge',
+    dollarWindows.map(([k, v]) => [{ window: k }, v.locked_reason ? 1 : 0]));
+
   push('claude_usage_fetch_success_timestamp_seconds', 'Unix time of last successful upstream fetch', 'gauge',
     state.fetchedAt ? [[{}, Math.floor(state.fetchedAt / 1000)]] : []);
   push('claude_usage_fetch_errors_total', 'Count of failed upstream fetches since start', 'counter', [[{}, state.errorsTotal]]);
