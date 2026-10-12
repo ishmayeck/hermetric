@@ -50,7 +50,9 @@ Add `?fresh=1` to `/usage` or `/raw` to force an immediate upstream fetch.
 
 Prometheus series: `claude_usage_percent{limit="session"|"weekly_all"|"weekly_model",model=...}`,
 `claude_usage_resets_at_seconds`, `claude_usage_limit_active`, `claude_usage_credits_*`,
-plus `claude_usage_up` / `claude_usage_fetch_*` scrape health.
+plus `claude_usage_up` / `claude_usage_fetch_*` scrape health and
+`claude_oauth_login_timestamp_seconds` / `claude_oauth_login_expires_estimate_seconds`
+(login-lifetime tracking, see below).
 
 ## Auth
 
@@ -70,6 +72,19 @@ DOCKER_CONTEXT=truenas ./login.sh   # deployed instance
 Open the printed URL in a browser where you're logged into claude.ai, approve, paste
 the code back. The script restarts the service afterwards if it's running. The service then refreshes the access token itself (~8 h lifetime)
 using the refresh token, and persists rotations to `/data/token.json`.
+
+**The login itself expires.** Refreshing rotates the token pair but does not extend
+the login: one created 2026-08-29 03:00 died with `invalid_grant: Refresh token
+expired` on 2026-09-25 ~11:00 (~27.3 days). After that the exporter keeps serving
+its last snapshot with `claude_usage_up 0`, so re-run `login.sh` roughly monthly.
+Upstream doesn't report the deadline, so hermetric exports the login time
+(`createdAt`, kept across refreshes) and an estimate of login + `LOGIN_LIFETIME_DAYS`.
+Alerts worth having:
+
+```promql
+claude_usage_up == 0                                    # for: 30m — data is stale
+claude_oauth_login_expires_estimate_seconds - time() < 3*86400   # re-login soon
+```
 
 **Do not** seed `/data/token.json` from `~/.claude/.credentials.json`: refresh tokens
 rotate, and two clients sharing one would log each other out. The whole point of
@@ -92,6 +107,7 @@ quick tests with the short-lived access token from an existing Claude Code login
 | `CLAUDE_OAUTH_TOKEN`    | –                  | static token mode (testing)  |
 | `CLAUDE_TOKEN_FILE`     | `/data/token.json` | refresh-token mode           |
 | `UPSTREAM_USER_AGENT`   | `claude-cli/...`   | UA sent to the usage endpoint |
+| `LOGIN_LIFETIME_DAYS`   | `27`               | for the login-expiry estimate |
 
 ## Run
 

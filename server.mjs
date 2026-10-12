@@ -38,6 +38,10 @@ const cfg = {
   pollSeconds: Math.max(15, Number(process.env.POLL_INTERVAL_SECONDS ?? 180)),
   staticToken: process.env.CLAUDE_OAUTH_TOKEN || null,
   tokenFile: process.env.CLAUDE_TOKEN_FILE ?? '/data/token.json',
+  // The OAuth login has an absolute lifetime that refreshes don't extend
+  // (observed: 2026-08-29 03:00 -> 'Refresh token expired' 2026-09-25 ~11:00,
+  // ~27.3 d). Upstream doesn't report it, so the expiry metric is an estimate.
+  loginLifetimeDays: Number(process.env.LOGIN_LIFETIME_DAYS ?? 27),
 };
 
 // ---------------------------------------------------------------------------
@@ -358,6 +362,13 @@ function renderMetrics() {
   push('claude_usage_fetch_success_timestamp_seconds', 'Unix time of last successful upstream fetch', 'gauge',
     state.fetchedAt ? [[{}, Math.floor(state.fetchedAt / 1000)]] : []);
   push('claude_usage_fetch_errors_total', 'Count of failed upstream fetches since start', 'counter', [[{}, state.errorsTotal]]);
+  // createdAt is stamped by `login` and carried through refreshes.
+  const created = Date.parse(loadTokenFile()?.createdAt ?? '');
+  push('claude_oauth_login_timestamp_seconds', 'Unix time of the interactive login behind the current token', 'gauge',
+    Number.isNaN(created) ? [] : [[{}, Math.floor(created / 1000)]]);
+  push('claude_oauth_login_expires_estimate_seconds',
+    'Estimated Unix time the login dies (login + LOGIN_LIFETIME_DAYS; refresh does not extend it)', 'gauge',
+    Number.isNaN(created) ? [] : [[{}, Math.floor(created / 1000 + cfg.loginLifetimeDays * 86400)]]);
   push('claude_usage_up', 'Whether the last upstream fetch attempt succeeded (1/0)', 'gauge',
     [[{}, state.raw && !state.lastError ? 1 : 0]]);
 
