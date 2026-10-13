@@ -134,6 +134,8 @@ countdowns, which limit is currently binding, extra-usage spend, exporter
 freshness, and utilization over time. Import it via **Dashboards → Import**
 and pick the Prometheus datasource that scrapes hermetric when prompted.
 
+![The bundled Claude Usage dashboard in Grafana, last 24 hours](docs/dashboard.png)
+
 ## Notes
 
 - The upstream payload is full of in-flight experiment fields (`tangelo`,
